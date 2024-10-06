@@ -188,6 +188,18 @@ class App(Window):
             app.is_drawing_ellipse = False
         elif key == GLFW_KEY_LEFT_SHIFT or key == GLFW_KEY_RIGHT_SHIFT:
             app.shift_pressed = action != GLFW_RELEASE
+        elif key == GLFW_KEY_F and action == GLFW_PRESS and app.mode == 3:
+            if app.polyline_points:
+                intersections = app.__check_self_intersection(
+                    window, app.polyline_points
+                )
+                if not intersections:
+                    app.__scan_convert_polygon(app.shapes[0].path, app.polyline_points)
+                else:
+                    app.__draw_polygon_edges(
+                        window, app.shapes[0].path, app.polyline_points, intersections
+                    )
+                app.shapes[0].dirty = True
 
     @staticmethod
     def __mouseButtonCallback(
@@ -296,7 +308,12 @@ class App(Window):
 
     @staticmethod
     def __bresenhamLine(
-        path: list[glm.float32], x0: int, y0: int, x1: int, y1: int
+        path: list[glm.float32],
+        x0: int,
+        y0: int,
+        x1: int,
+        y1: int,
+        color: list[float] = [1.0, 1.0, 1.0],
     ) -> None:
         """
         Bresenham line-drawing algorithm for line (x0, y0) -> (x1, y1) in screen space,
@@ -311,7 +328,7 @@ class App(Window):
 
         if dx == 0:
             for y in range(min(y0, y1), max(y0, y1) + 1):
-                path.extend([x0, y, 1.0, 1.0, 1.0])
+                path.extend([x0, y, color[0], color[1], color[2]])
             return
 
         steep = abs(dy) > abs(dx)
@@ -333,10 +350,9 @@ class App(Window):
 
         for x in range(x0, x1 + 1):
             if steep:
-                path.extend([y, x, 1.0, 1.0, 1.0])
+                path.extend([y, x, color[0], color[1], color[2]])
             else:
-                path.extend([x, y, 1.0, 1.0, 1.0])
-
+                path.extend([x, y, color[0], color[1], color[2]])
             if d > 0:
                 y += y_step
                 d -= 2 * dx
@@ -410,6 +426,111 @@ class App(Window):
                 dx += 2 * b * b
                 dy -= 2 * a * a
                 d2 += dx - dy + a * a
+
+    @staticmethod
+    def __scan_convert_polygon(
+        path: list[glm.float32], points: list[glm.dvec2]
+    ) -> None:
+        # Find the bounding box of the polygon
+        min_y = min(p.y for p in points)
+        max_y = max(p.y for p in points)
+
+        # Create a list of edges
+        edges = []
+        for i in range(len(points)):
+            p1 = points[i]
+            p2 = points[(i + 1) % len(points)]
+            if p1.y != p2.y:  # Ignore horizontal edges
+                edges.append((p1, p2) if p1.y < p2.y else (p2, p1))
+
+        # Sort edges by y-coordinate
+        edges.sort(key=lambda e: e[0].y)
+
+        # Scan convert the polygon
+        active_edges = []
+        y = int(min_y)
+        while y <= max_y:
+            # Add new edges to active list
+            active_edges.extend(e for e in edges if int(e[0].y) == y)
+
+            # Remove inactive edges
+            active_edges = [e for e in active_edges if int(e[1].y) > y]
+
+            # Sort active edges by x-coordinate
+            active_edges.sort(
+                key=lambda e: e[0].x
+                + (e[1].x - e[0].x) * (y - e[0].y) / (e[1].y - e[0].y)
+            )
+
+            # Fill between pairs of intersections
+            for i in range(0, len(active_edges), 2):
+                if i + 1 < len(active_edges):
+                    x1 = int(
+                        active_edges[i][0].x
+                        + (active_edges[i][1].x - active_edges[i][0].x)
+                        * (y - active_edges[i][0].y)
+                        / (active_edges[i][1].y - active_edges[i][0].y)
+                    )
+                    x2 = int(
+                        active_edges[i + 1][0].x
+                        + (active_edges[i + 1][1].x - active_edges[i + 1][0].x)
+                        * (y - active_edges[i + 1][0].y)
+                        / (active_edges[i + 1][1].y - active_edges[i + 1][0].y)
+                    )
+                    for x in range(x1, x2 + 1):
+                        path.extend([x, y, 1.0, 1.0, 1.0])
+
+            y += 1
+
+    @staticmethod
+    def __check_self_intersection(
+        window: GLFWwindow, points: list[glm.dvec2]
+    ) -> list[tuple[int, int]]:
+        app = glfwGetWindowUserPointer(window)
+        intersections = []
+        n = len(points)
+        for i in range(n):
+            for j in range(i + 2, n):
+                if i == 0 and j == n - 1:
+                    continue
+                if app.__segments_intersect(
+                    points[i], points[(i + 1) % n], points[j], points[(j + 1) % n]
+                ):
+                    intersections.append((i, j))
+        return intersections
+
+    @staticmethod
+    def __segments_intersect(
+        p1: glm.dvec2, p2: glm.dvec2, p3: glm.dvec2, p4: glm.dvec2
+    ) -> bool:
+        def ccw(a: glm.dvec2, b: glm.dvec2, c: glm.dvec2) -> bool:
+            return (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x)
+
+        return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(p1, p2, p4)
+
+    @staticmethod
+    def __draw_polygon_edges(
+        window: GLFWwindow,
+        path: list[glm.float32],
+        points: list[glm.dvec2],
+        intersections: list[tuple[int, int]],
+    ) -> None:
+        app = glfwGetWindowUserPointer(window)
+        n = len(points)
+        for i in range(n):
+            color = (
+                [1.0, 0.0, 0.0]
+                if any(i in edge for edge in intersections)
+                else [1.0, 1.0, 1.0]
+            )
+            app.__bresenhamLine(
+                path,
+                int(points[i].x),
+                int(points[i].y),
+                int(points[(i + 1) % n].x),
+                int(points[(i + 1) % n].y),
+                color,
+            )
 
     def __render(self) -> None:
         # Update all shader uniforms.
