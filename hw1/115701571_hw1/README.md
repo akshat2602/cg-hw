@@ -46,13 +46,7 @@ Features or parts left unchecked here won't be graded!
   - [x] Concave Polygon
   - [x] Self-intersection detection & report
 
-## Usage
 
-- If you have implemented extra functionalities not mentioned in the manual,
-  you may specify them here.
-- If your program failed to obey the required mouse/keyboard gestures,
-  you may also specify your own setting here.
-  In this case, penalties may apply.
 
 ## FAQ: Runtime error "shader file not successfully read"
 
@@ -64,8 +58,3 @@ i.e., the path to `cpp/` or `py/`
 (these directories should be further renamed to `yoursbuid_hwx` as specified above). 
 Note that the working directory must be **exactly** root of your project 
 (its parent directories, e.g. path to `hw1/`, won't work). 
-
-## Appendix
-
-Please include any other stuff you would like to mention in this section.
-E.g., your suggestion on possible combinations of cubic curve parameters in this programming part. 
