@@ -40,6 +40,8 @@ class BezierCurve(GLShape, Renderable):
         self.shader.setMat3("model", self.model)
 
         glBindVertexArray(self.vao)
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
         glPatchParameteri(GL_PATCH_VERTICES, 4)
         glDrawArrays(GL_PATCHES, 0, len(self.control_points))
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
         glBindVertexArray(0)
