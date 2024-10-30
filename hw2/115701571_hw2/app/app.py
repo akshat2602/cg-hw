@@ -6,7 +6,7 @@ from glfw import _GLFWwindow as GLFWwindow
 import glm
 
 from .window import Window
-from shape import Renderable, BezierCurve, Polyline, PixelData, Pixel
+from shape import Renderable, BezierCurve, Polyline, PixelData, Pixel, C2Spline
 from util import Shader
 
 
@@ -34,20 +34,6 @@ class App(Window):
 
         # Program context.
 
-        # Shaders.
-        # self.triangleShader: Shader = Shader(
-        #     vert="shader/triangle.vert.glsl",
-        #     tesc=None,
-        #     tese=None,
-        #     frag="shader/triangle.frag.glsl",
-        # )
-
-        # self.circleShader: Shader = Shader(
-        #     vert="shader/circle.vert.glsl",
-        #     tesc="shader/circle.tesc.glsl",
-        #     tese="shader/circle.tese.glsl",
-        #     frag="shader/circle.frag.glsl",
-        # )
         self.bezierShader: Shader = Shader(
             vert="shader/bezier.vert.glsl",
             tesc="shader/bezier.tesc.glsl",
@@ -79,55 +65,10 @@ class App(Window):
         )
         self.previewPolyline: Polyline = Polyline(self.polyLineShader)
         self.pixelRenderer: Pixel = Pixel(self.pixelShader)
+        self.c2_spline = C2Spline(self.bezierShader)
 
         # Objects to render.
         self.shapes: list[Renderable] = []
-
-        # self.shapes.append(
-        #     Triangle(
-        #         self.triangleShader,
-        #         glm.array(
-        #             # dtype
-        #             glm.float32,
-        #             # positions    # colors
-        #             200.0,
-        #             326.8,
-        #             1.0,
-        #             0.0,
-        #             0.0,  # bottom right
-        #             800.0,
-        #             326.8,
-        #             0.0,
-        #             1.0,
-        #             0.0,  # bottom left
-        #             500.0,
-        #             846.4,
-        #             0.0,
-        #             0.0,
-        #             1.0,  # top
-        #         ),
-        #     )
-        # )
-
-        # self.shapes.append(
-        #     Circle(
-        #         self.circleShader,
-        #         glm.array(
-        #             # dtype
-        #             glm.float32,
-        #             # center pos   # radius
-        #             200.0,
-        #             326.8,
-        #             200.0,
-        #             800.0,
-        #             326.8,
-        #             300.0,
-        #             500.0,
-        #             846.4,
-        #             400.0,
-        #         ),
-        #     )
-        # )
 
         # Object attributes affected by GUI.
         self.animationEnabled: bool = True
@@ -170,7 +111,7 @@ class App(Window):
 
         # Convert control points to pixels with green color.
         pixels = [
-            PixelData(glm.vec2(cp.x, cp.y), glm.vec3(1.0, 0.0, 0.0))
+            PixelData(glm.vec2(cp.x, cp.y), glm.vec3(0.0, 1.0, 0.0))
             for cp in self.bezierControlPoints
         ]
         self.pixelRenderer.update_pixels(pixels)
@@ -200,9 +141,9 @@ class App(Window):
         self.bezierControlPoints.clear()
         self.previewPolyline.update_points([])
         self.drawingBezier = True
-        if self.bezierCurve:
+        if self.c2_spline:
             self.shapes = []
-            self.bezierCurve = BezierCurve(self.bezierShader, self.bezierControlPoints)
+            self.c2_spline = C2Spline(self.bezierShader)
 
     @staticmethod
     def __framebufferSizeCallback(window: GLFWwindow, width: int, height: int) -> None:
@@ -217,9 +158,6 @@ class App(Window):
         if key == GLFW_KEY_1 and action == GLFW_PRESS:
             app.resetBezierDrawing()
 
-        # if key == GLFW_KEY_A and action == GLFW_RELEASE:
-        #     app.animationEnabled = not app.animationEnabled
-
     @staticmethod
     def __mouseButtonCallback(
         window: GLFWwindow, button: int, action: int, mods: int
@@ -228,39 +166,23 @@ class App(Window):
 
         if app.drawingBezier:
             if button == GLFW_MOUSE_BUTTON_LEFT and action == GLFW_PRESS:
-                if len(app.bezierControlPoints) < 3:
-                    app.bezierControlPoints.append(copy.deepcopy(app.mousePos))
-                    preview_points = app.bezierControlPoints.copy()
-                    app.previewPolyline.update_points(preview_points)
+                app.bezierControlPoints.append(copy.deepcopy(app.mousePos))
+                app.c2_spline.update_points(app.bezierControlPoints)
+                preview_points = app.bezierControlPoints.copy()
+                app.previewPolyline.update_points(preview_points)
 
             elif button == GLFW_MOUSE_BUTTON_RIGHT and action == GLFW_PRESS:
-                if len(app.bezierControlPoints) == 3:
-                    app.bezierControlPoints.append(copy.deepcopy(app.mousePos))
-                    app.bezierCurve = BezierCurve(
-                        app.bezierShader, app.bezierControlPoints
-                    )
+                app.bezierControlPoints.append(copy.deepcopy(app.mousePos))
+                app.c2_spline = C2Spline(app.bezierShader)
 
-                    preview_points = app.bezierControlPoints.copy()
-                    app.previewPolyline.update_points(preview_points)
+                app.c2_spline.update_points(app.bezierControlPoints)
 
-                    app.shapes.append(app.previewPolyline)
-                    app.shapes.append(app.bezierCurve)
-                    app.drawingBezier = False
+                preview_points = app.bezierControlPoints.copy()
+                app.previewPolyline.update_points(preview_points)
 
-        # if button == GLFW_MOUSE_BUTTON_LEFT:
-        #     if action == GLFW_PRESS:
-        #         app.mousePressed = True
-        #         app.lastMouseLeftClickPos = copy.deepcopy(app.mousePos)
-        #         app.lastMouseLeftPressPos = copy.deepcopy(app.mousePos)
-
-        #         if app.debugMousePos:
-        #             print(f"mouseLeftPress @ {app.mousePos}")
-
-        #     elif action == GLFW_RELEASE:
-        #         app.mousePressed = False
-
-        #         if app.debugMousePos:
-        #             print(f"mouseLeftRelease @ {app.mousePos}")
+                app.shapes.append(app.previewPolyline)
+                app.shapes.append(app.c2_spline)
+                app.drawingBezier = False
 
     @staticmethod
     def __scrollCallback(window: GLFWwindow, xoffset: float, yoffset: float) -> None:
@@ -282,14 +204,6 @@ class App(Window):
         t: float = self.timeElapsedSinceLastFrame
 
         # Update all shader uniforms.
-        # self.triangleShader.use()
-        # self.triangleShader.setFloat("windowWidth", self.windowWidth)
-        # self.triangleShader.setFloat("windowHeight", self.windowHeight)
-
-        # self.circleShader.use()
-        # self.circleShader.setFloat("windowWidth", self.windowWidth)
-        # self.circleShader.setFloat("windowHeight", self.windowHeight)
-
         self.polyLineShader.use()
         self.polyLineShader.setFloat("windowWidth", self.windowWidth)
         self.polyLineShader.setFloat("windowHeight", self.windowHeight)
@@ -306,7 +220,7 @@ class App(Window):
         if self.drawingBezier:
             self.previewPolyline.render(0, False)
             if len(self.bezierControlPoints) > 0:
-                self.bezierCurve.render(0, False)
+                self.c2_spline.render(0, False)
 
         self.renderControlPoints()
 

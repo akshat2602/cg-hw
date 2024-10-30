@@ -16,7 +16,7 @@ class Pixel(GLShape, Renderable):
     def __init__(self, shader: Shader):
         super().__init__(shader)
         self.pixels = []
-        self.pixel_size = 5.0
+        self.pixel_size = 15.0
 
         glBindVertexArray(self.vao)
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
