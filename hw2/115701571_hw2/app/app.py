@@ -159,7 +159,9 @@ class App(Window):
             preview_points = app.bezierControlPoints.copy()
             preview_points.append(copy.deepcopy(app.mousePos))
             app.previewPolyline.update_points(preview_points)
-            app.c2_spline.update_points(preview_points)
+            # app.bezierControlPoints = copy.deepcopy(
+            #     app.c2_spline.add_interpolation_point(copy.deepcopy(app.mousePos))
+            # )
 
         if app.drawingcatmullRom and len(app.catmullRomControlPoints) > 0:
             preview_points = app.catmullRomControlPoints.copy()
@@ -216,16 +218,18 @@ class App(Window):
 
         if app.drawingBezier:
             if button == GLFW_MOUSE_BUTTON_LEFT and action == GLFW_PRESS:
-                app.bezierControlPoints.append(copy.deepcopy(app.mousePos))
-                app.c2_spline.update_points(app.bezierControlPoints)
+                app.bezierControlPoints = copy.deepcopy(
+                    app.c2_spline.add_interpolation_point(copy.deepcopy(app.mousePos))
+                )
                 preview_points = app.bezierControlPoints.copy()
                 app.previewPolyline.update_points(preview_points)
 
             elif button == GLFW_MOUSE_BUTTON_RIGHT and action == GLFW_PRESS:
-                app.bezierControlPoints.append(copy.deepcopy(app.mousePos))
-                app.c2_spline = C2Spline(app.bezierShader)
-
-                app.c2_spline.update_points(app.bezierControlPoints)
+                app.bezierControlPoints = copy.deepcopy(
+                    app.c2_spline.add_interpolation_point(
+                        copy.deepcopy(app.mousePos), True
+                    )
+                )
 
                 preview_points = app.bezierControlPoints.copy()
                 app.previewPolyline.update_points(preview_points)
@@ -277,7 +281,7 @@ class App(Window):
         self.polyLineShader.use()
         self.polyLineShader.setFloat("windowWidth", self.windowWidth)
         self.polyLineShader.setFloat("windowHeight", self.windowHeight)
-        self.polyLineShader.setVec4("lineColor", glm.vec4(1.0, 1.0, 1.0, 1.0))
+        self.polyLineShader.setVec4("lineColor", glm.vec4(1.0, 0.0, 0.0, 1.0))
 
         self.bezierShader.use()
         self.bezierShader.setMat3(
@@ -285,13 +289,13 @@ class App(Window):
         )  # Identity matrix, adjust if needed
         self.bezierShader.setFloat("windowWidth", self.windowWidth)
         self.bezierShader.setFloat("windowHeight", self.windowHeight)
-        self.bezierShader.setVec4("bezierColor", glm.vec4(1.0, 0.0, 0.0, 1.0))
+        self.bezierShader.setVec4("bezierColor", glm.vec4(1.0, 1.0, 1.0, 1.0))
 
         self.catmullRomShader.use()
         self.catmullRomShader.setMat3("model", glm.mat3(1.0))
         self.catmullRomShader.setFloat("windowWidth", self.windowWidth)
         self.catmullRomShader.setFloat("windowHeight", self.windowHeight)
-        self.catmullRomShader.setVec4("splineColor", glm.vec4(1.0, 0.0, 0.0, 1.0))
+        self.catmullRomShader.setVec4("splineColor", glm.vec4(1.0, 1.0, 1.0, 1.0))
 
         if self.drawingBezier:
             self.previewPolyline.render(0, False)

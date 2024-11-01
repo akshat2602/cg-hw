@@ -25,7 +25,6 @@ class BezierCurve(GLShape, Renderable):
 
     def update_points(self, control_points: list[glm.vec2]):
         self.control_points = copy.deepcopy(control_points)
-
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
         data = glm.array(
             glm.float32,
