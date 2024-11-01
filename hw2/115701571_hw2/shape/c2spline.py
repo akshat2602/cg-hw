@@ -21,7 +21,7 @@ class C2Spline(GLShape, Renderable):
         self._update_vbo()
 
     def _update_control_points(self):
-        self.control_points = copy.deepcopy(self.interpolation_points)
+        self.control_points = self.interpolation_points
 
     def _update_segments(self):
         self.segments = []
@@ -34,7 +34,6 @@ class C2Spline(GLShape, Renderable):
     def render(self, timeElapsedSinceLastFrame: int, animate: bool) -> None:
         # Render individual segments
         for segment in self.segments:
-            print(segment.control_points)
             segment.render(timeElapsedSinceLastFrame, animate)
 
     def update_points(self, points: list[glm.vec2]):

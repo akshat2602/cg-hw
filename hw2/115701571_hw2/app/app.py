@@ -6,7 +6,15 @@ from glfw import _GLFWwindow as GLFWwindow
 import glm
 
 from .window import Window
-from shape import Renderable, BezierCurve, Polyline, PixelData, Pixel, C2Spline
+from shape import (
+    Renderable,
+    BezierCurve,
+    Polyline,
+    PixelData,
+    Pixel,
+    C2Spline,
+    CatmullRomSpline,
+)
 from util import Shader
 
 
@@ -55,9 +63,20 @@ class App(Window):
             frag="shader/pixel.frag.glsl",
         )
 
+        self.catmullRomShader: Shader = Shader(
+            vert="shader/catmullrom.vert.glsl",
+            tesc="shader/catmullrom.tesc.glsl",
+            tese="shader/catmullrom.tese.glsl",
+            frag="shader/catmullrom.frag.glsl",
+        )
+
         # Bezier curve control points
         self.bezierControlPoints: list[glm.vec2] = []
         self.drawingBezier: bool = False
+
+        # CatmullRom curve control points
+        self.catmullRomControlPoints: list[glm.vec2] = []
+        self.drawingcatmullRom: bool = False
 
         # Renderers.
         self.bezierCurve: BezierCurve = BezierCurve(
@@ -66,6 +85,9 @@ class App(Window):
         self.previewPolyline: Polyline = Polyline(self.polyLineShader)
         self.pixelRenderer: Pixel = Pixel(self.pixelShader)
         self.c2_spline = C2Spline(self.bezierShader)
+        self.catmullrom: CatmullRomSpline = CatmullRomSpline(
+            self.catmullRomShader, self.catmullRomControlPoints
+        )
 
         # Objects to render.
         self.shapes: list[Renderable] = []
@@ -110,10 +132,18 @@ class App(Window):
         self.pixelShader.setFloat("windowHeight", self.windowHeight)
 
         # Convert control points to pixels with green color.
-        pixels = [
-            PixelData(glm.vec2(cp.x, cp.y), glm.vec3(0.0, 1.0, 0.0))
-            for cp in self.bezierControlPoints
-        ]
+        # Render both bezier and catmullrom control points.
+        pixels = []
+        if self.bezierControlPoints:
+            pixels = [
+                PixelData(glm.vec2(cp.x, cp.y), glm.vec3(0.0, 1.0, 0.0))
+                for cp in self.bezierControlPoints
+            ]
+        if self.catmullRomControlPoints:
+            pixels = [
+                PixelData(glm.vec2(cp.x, cp.y), glm.vec3(0.0, 1.0, 0.0))
+                for cp in self.catmullRomControlPoints
+            ]
         self.pixelRenderer.update_pixels(pixels)
 
         self.pixelRenderer.render(0, False)
@@ -129,6 +159,13 @@ class App(Window):
             preview_points = app.bezierControlPoints.copy()
             preview_points.append(copy.deepcopy(app.mousePos))
             app.previewPolyline.update_points(preview_points)
+            app.c2_spline.update_points(preview_points)
+
+        if app.drawingcatmullRom and len(app.catmullRomControlPoints) > 0:
+            preview_points = app.catmullRomControlPoints.copy()
+            preview_points.append(copy.deepcopy(app.mousePos))
+            app.previewPolyline.update_points(preview_points)
+            app.catmullrom.update_points(preview_points)
 
         if app.mousePressed:
             # # Note: Must calculate offset first, then update lastMouseLeftPressPos.
@@ -145,6 +182,16 @@ class App(Window):
             self.shapes = []
             self.c2_spline = C2Spline(self.bezierShader)
 
+    def resetCatmullRomDrawing(self):
+        self.catmullRomControlPoints.clear()
+        self.previewPolyline.update_points([])
+        self.drawingcatmullRom = True
+        if self.catmullrom:
+            self.shapes = []
+            self.catmullrom = CatmullRomSpline(
+                self.catmullRomShader, self.catmullRomControlPoints
+            )
+
     @staticmethod
     def __framebufferSizeCallback(window: GLFWwindow, width: int, height: int) -> None:
         glViewport(0, 0, width, height)
@@ -157,6 +204,9 @@ class App(Window):
 
         if key == GLFW_KEY_1 and action == GLFW_PRESS:
             app.resetBezierDrawing()
+
+        if key == GLFW_KEY_3 and action == GLFW_PRESS:
+            app.resetCatmullRomDrawing()
 
     @staticmethod
     def __mouseButtonCallback(
@@ -183,6 +233,26 @@ class App(Window):
                 app.shapes.append(app.previewPolyline)
                 app.shapes.append(app.c2_spline)
                 app.drawingBezier = False
+
+        if app.drawingcatmullRom:
+            if button == GLFW_MOUSE_BUTTON_LEFT and action == GLFW_PRESS:
+                app.catmullRomControlPoints.append(copy.deepcopy(app.mousePos))
+                app.catmullrom.update_points(app.catmullRomControlPoints)
+                preview_points = app.catmullRomControlPoints.copy()
+                app.previewPolyline.update_points(preview_points)
+
+            elif button == GLFW_MOUSE_BUTTON_RIGHT and action == GLFW_PRESS:
+                app.catmullRomControlPoints.append(copy.deepcopy(app.mousePos))
+                app.catmullrom = CatmullRomSpline(
+                    app.catmullRomShader, app.catmullRomControlPoints
+                )
+
+                preview_points = app.catmullRomControlPoints.copy()
+                app.previewPolyline.update_points(preview_points)
+
+                app.shapes.append(app.previewPolyline)
+                app.shapes.append(app.catmullrom)
+                app.drawingcatmullRom = False
 
     @staticmethod
     def __scrollCallback(window: GLFWwindow, xoffset: float, yoffset: float) -> None:
@@ -217,10 +287,21 @@ class App(Window):
         self.bezierShader.setFloat("windowHeight", self.windowHeight)
         self.bezierShader.setVec4("bezierColor", glm.vec4(1.0, 0.0, 0.0, 1.0))
 
+        self.catmullRomShader.use()
+        self.catmullRomShader.setMat3("model", glm.mat3(1.0))
+        self.catmullRomShader.setFloat("windowWidth", self.windowWidth)
+        self.catmullRomShader.setFloat("windowHeight", self.windowHeight)
+        self.catmullRomShader.setVec4("splineColor", glm.vec4(1.0, 0.0, 0.0, 1.0))
+
         if self.drawingBezier:
             self.previewPolyline.render(0, False)
             if len(self.bezierControlPoints) > 0:
                 self.c2_spline.render(0, False)
+
+        if self.drawingcatmullRom:
+            self.previewPolyline.render(0, False)
+            if len(self.catmullRomControlPoints) > 0:
+                self.catmullrom.render(0, False)
 
         self.renderControlPoints()
 
