@@ -153,7 +153,6 @@ class App(Window):
                     else glm.vec3(0.0, 1.0, 0.0)
                 )
                 pixels.append(PixelData(glm.vec2(cp.x, cp.y), color))
-
         self.pixelRenderer.update_pixels(pixels)
         self.pixelRenderer.render(0, False)
 
@@ -209,6 +208,8 @@ class App(Window):
         self.previewPolyline.update_points([])
         self.drawingBezier = True
         self.editingBezier = False
+        self.drawingcatmullRom = False
+        self.editingCatmullRom = False
         if self.c2_spline:
             self.shapes = []
             self.c2_spline = C2Spline(self.bezierShader)
@@ -219,6 +220,8 @@ class App(Window):
         self.previewPolyline.update_points([])
         self.drawingcatmullRom = True
         self.editingCatmullRom = False
+        self.drawingBezier = False
+        self.editingBezier = False
         if self.catmullrom:
             self.shapes = []
             self.catmullrom = CatmullRomSpline(
