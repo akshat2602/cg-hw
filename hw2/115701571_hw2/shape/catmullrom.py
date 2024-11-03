@@ -13,14 +13,56 @@ class CatmullRomSpline(GLShape, Renderable):
         self.control_points = copy.deepcopy(control_points)
         self.vao = glGenVertexArrays(1)
         self.vbo = glGenBuffers(1)
+        self.selected_node_index = None
 
     def add_control_point(self, point: glm.vec2):
-        """Adds a control point and updates the spline."""
         self.control_points.append(point)
         self.update_vbo()
 
+    def select_node(self, mouse_pos: glm.dvec2) -> bool:
+        THRESHOLD = 10.0  # pixels
+        closest_dist = float("inf")
+        closest_idx = -1
+
+        for i, point in enumerate(self.control_points):
+            # Convert both vectors to the same type (vec2) before subtraction
+            point_vec2 = glm.vec2(point.x, point.y)
+            mouse_vec2 = glm.vec2(mouse_pos.x, mouse_pos.y)
+            diff = point_vec2 - mouse_vec2
+            dist = glm.length(diff)
+
+            if dist < THRESHOLD and dist < closest_dist:
+                closest_dist = dist
+                closest_idx = i
+
+        self.selected_node_index = closest_idx
+        return closest_idx != -1
+
+    def move_selected_node(self, new_pos: glm.dvec2):
+        if self.selected_node_index == -1:
+            return
+
+        self.control_points[self.selected_node_index] = glm.vec2(new_pos.x, new_pos.y)
+        self.update_vbo()
+
+    def delete_selected_node(self):
+        if self.selected_node_index == -1:
+            return
+
+        del self.control_points[self.selected_node_index]
+        self.selected_node_index = -1
+        self.update_vbo()
+
+    def add_node_at_index(self, new_pos: glm.dvec2):
+        if self.selected_node_index == -1:
+            return
+
+        self.control_points.insert(
+            self.selected_node_index + 1, glm.vec2(new_pos.x, new_pos.y)
+        )
+        self.update_vbo()
+
     def update_points(self, points: list[glm.vec2]):
-        """Updates the control points and the VBO."""
         self.control_points = copy.deepcopy(points)
         self.update_vbo()
 
