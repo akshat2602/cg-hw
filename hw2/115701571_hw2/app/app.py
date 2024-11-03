@@ -15,7 +15,7 @@ from shape import (
     C2Spline,
     CatmullRomSpline,
 )
-from util import Shader
+from util import Shader, SplineIO
 
 
 class App(Window):
@@ -192,6 +192,7 @@ class App(Window):
 
     def resetBezierDrawing(self):
         self.bezierControlPoints.clear()
+        self.catmullRomControlPoints.clear()
         self.previewPolyline.update_points([])
         self.drawingBezier = True
         self.editingBezier = False
@@ -201,6 +202,7 @@ class App(Window):
 
     def resetCatmullRomDrawing(self):
         self.catmullRomControlPoints.clear()
+        self.bezierControlPoints.clear()
         self.previewPolyline.update_points([])
         self.drawingcatmullRom = True
         if self.catmullrom:
@@ -232,6 +234,63 @@ class App(Window):
                         app.c2_spline.control_points
                     )
                     app.previewPolyline.update_points(app.bezierControlPoints)
+
+        if key == GLFW_KEY_INSERT and action == GLFW_PRESS:
+            if app.editingBezier:
+                if app.c2_spline.insert_node(glm.vec2(app.mousePos.x, app.mousePos.y)):
+                    app.bezierControlPoints = copy.deepcopy(
+                        app.c2_spline.control_points
+                    )
+                    app.previewPolyline.update_points(app.bezierControlPoints)
+        if key == GLFW_KEY_S and action == GLFW_PRESS and (mods & GLFW_MOD_CONTROL):
+            if app.editingBezier:
+                SplineIO.save_spline(
+                    "etc/config.txt", app.bezierControlPoints, True  # is_c2
+                )
+            elif app.drawingcatmullRom or len(app.catmullRomControlPoints) > 0:
+                SplineIO.save_spline(
+                    "etc/config.txt",
+                    app.catmullRomControlPoints,
+                    False,  # is_c2
+                )
+
+        # Handle Ctrl+L (Load)
+        if key == GLFW_KEY_L and action == GLFW_PRESS and (mods & GLFW_MOD_CONTROL):
+            result = SplineIO.load_spline("etc/config.txt")
+            if result is not None:
+                control_points, is_2d, is_c2 = result
+
+                # Clear current state
+                app.shapes.clear()
+
+                if is_c2:
+                    # Load as C2 spline
+                    app.resetBezierDrawing()
+                    app.bezierControlPoints = control_points
+                    app.c2_spline = C2Spline(app.bezierShader)
+
+                    # Add points to the spline one by one
+                    app.c2_spline.update_points(control_points)
+
+                    app.previewPolyline.update_points(control_points)
+                    app.shapes.append(app.previewPolyline)
+                    app.shapes.append(app.c2_spline)
+                    app.drawingBezier = False
+                    app.drawingcatmullRom = False
+                    app.editingBezier = True
+
+                else:
+                    # Load as Catmull-Rom spline
+                    app.resetCatmullRomDrawing()
+                    app.catmullRomControlPoints = control_points
+                    app.catmullrom = CatmullRomSpline(
+                        app.catmullRomShader, control_points
+                    )
+                    app.previewPolyline.update_points(control_points)
+                    app.shapes.append(app.previewPolyline)
+                    app.shapes.append(app.catmullrom)
+                    app.drawingcatmullRom = False
+                    app.drawingBezier = False
 
     @staticmethod
     def __mouseButtonCallback(

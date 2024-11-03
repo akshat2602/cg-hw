@@ -16,6 +16,11 @@ class C2Spline(GLShape, Renderable):
         self.selected_node_index = -1
         self.preview_point = None
 
+    def update_points(self, points: list[glm.dvec2]):
+        self.interpolation_points = [glm.vec2(point.x, point.y) for point in points]
+        self.control_points = copy.deepcopy(self.interpolation_points)
+        self._update_segments()
+
     def update_preview(self, preview_point: glm.dvec2):
         self.preview_point = glm.vec2(preview_point.x, preview_point.y)
 
@@ -200,56 +205,38 @@ class C2Spline(GLShape, Renderable):
             self.selected_node_index = -1
             return True
 
-        num_segments = (len(self.control_points) - 1) // 3
+        num_segments = (len(self.control_points) - 2) // 3
         deleted_segment = self.selected_node_index // 3
 
-        # Store original length for bounds checking
-        original_length = len(self.control_points)
-
-        # Handle interpolation points (every third point)
+        # If deleting an interpolation point (every third point)
         if self.selected_node_index % 3 == 0:
-            if self.selected_node_index == 0:  # First point
-                # Remove first three points
-                self.control_points = self.control_points[3:]
+            if self.selected_node_index == 0:
+                self.control_points.pop(-2)
+                self.control_points.pop(-2)
+                self.control_points.pop(0)
                 self._propagate_changes_forward_delete(0)
-
-            elif self.selected_node_index == original_length - 1:  # Last point
-                # Remove last three points
-                self.control_points = self.control_points[:-3]
-                if len(self.control_points) > 0:
-                    self._propagate_changes_backward_delete(
-                        len(self.control_points) - 1
-                    )
-
-            else:  # Middle interpolation point
-                # Remove point and surrounding control points
-                self.control_points = (
-                    self.control_points[: self.selected_node_index - 2]
-                    + self.control_points[self.selected_node_index + 3 :]
-                )
-                # Update both directions if we have enough points
-                if len(self.control_points) > self.selected_node_index:
-                    self._propagate_changes_forward_delete(self.selected_node_index)
-                if self.selected_node_index > 0:
-                    self._propagate_changes_backward_delete(self.selected_node_index)
-
-        # Handle control points
-        else:
-            if deleted_segment == num_segments:  # Last segment
-                # Remove last three points
-                self.control_points = self.control_points[:-3]
-                if len(self.control_points) > 0:
-                    self._propagate_changes_backward_delete(
-                        len(self.control_points) - 1
-                    )
+            elif self.selected_node_index == len(self.control_points) - 1:
+                self.control_points.pop(-1)
+                self.control_points.pop(1)
+                self.control_points.pop(0)
+                self._propagate_changes_backward(len(self.control_points) - 1)
             else:
-                # Remove point and two following points
-                self.control_points = (
-                    self.control_points[: self.selected_node_index]
-                    + self.control_points[self.selected_node_index + 3 :]
-                )
-                if len(self.control_points) > self.selected_node_index:
-                    self._propagate_changes_forward_delete(self.selected_node_index)
+                self.control_points.pop(self.selected_node_index + 2)
+                self.control_points.pop(self.selected_node_index)
+                self.control_points.pop(self.selected_node_index - 2)
+                self._propagate_changes_forward_delete(self.selected_node_index)
+                self._propagate_changes_backward(self.selected_node_index)
+        else:
+            if deleted_segment == num_segments:
+                self.control_points.pop(self.selected_node_index)
+                self.control_points.pop(1)
+                self.control_points.pop(0)
+                self._propagate_changes_backward(self.selected_node_index)
+            else:
+                self.control_points.pop(-2)
+                self.control_points.pop(-2)
+                self.control_points.pop(self.selected_node_index)
+                self._propagate_changes_forward_delete(self.selected_node_index)
 
         self.selected_node_index = -1
         self._update_segments()
@@ -257,44 +244,78 @@ class C2Spline(GLShape, Renderable):
 
     def _propagate_changes_forward_delete(self, start_idx: int):
         """Updates control points forward after deletion."""
-        for i in range(start_idx + 1, len(self.control_points) - 1):
+        segment = start_idx // 3
+        next_segment_start = (segment + 1) * 3
+
+        for i in range(next_segment_start, len(self.control_points) - 1):
             if i % 3 == 1:
-                # Same as movement but with different point references
-                p1 = self.control_points[i - 1]
-                p0 = self.control_points[i - 2]
-                self.control_points[i] = glm.vec2(2.0 * p1.x - p0.x, 2.0 * p1.y - p0.y)
+                self._update_first_control_point(i)
             elif i % 3 == 2:
-                # Different point references for deletion
-                # Note: After deletion, the indices shift
-                p0 = self.control_points[i - 4]
-                p1 = self.control_points[i - 3]
-                p2 = self.control_points[i - 1]
-                self.control_points[i] = glm.vec2(
-                    p0.x + 2.0 * (p2.x - p1.x), p0.y + 2.0 * (p2.y - p1.y)
-                )
+                self._update_second_control_point(i)
 
-    def _propagate_changes_backward_delete(self, start_idx: int):
-        # Only propagate if we have enough points to work with
-        remaining_points = len(self.control_points)
-        if remaining_points < 3:
-            return
+    def insert_node(self, new_pos: glm.vec2) -> bool:
+        if self.selected_node_index == -1:
+            return False
 
-        for i in range(min(start_idx - 1, remaining_points - 1), 0, -1):
-            # Ensure we have enough points ahead for the calculations
-            if i % 3 == 2 and i + 2 < remaining_points:
-                # Handle second control point
-                p1 = self.control_points[i + 1]
-                p2 = self.control_points[i + 2]
-                self.control_points[i] = glm.vec2(2.0 * p1.x - p2.x, 2.0 * p1.y - p2.y)
+        # If inserting after the last point
+        if self.selected_node_index == len(self.control_points) - 1:
+            # Add new interpolation point
+            self.control_points.append(new_pos)
 
-            elif i % 3 == 1 and i + 4 < remaining_points:
-                # Handle first control point
-                p0 = self.control_points[i + 4]
-                p1 = self.control_points[i + 3]
-                p2 = self.control_points[i + 1]
-                self.control_points[i] = glm.vec2(
-                    p0.x + 2.0 * (p2.x - p1.x), p0.y + 2.0 * (p2.y - p1.y)
-                )
+            # Calculate and add new control points for C2 continuity
+            last_point = self.control_points[-2]
+            second_last_point = self.control_points[-3]
+
+            # First control point
+            control1 = glm.vec2(
+                last_point.x + (new_pos.x - second_last_point.x) / 3,
+                last_point.y + (new_pos.y - second_last_point.y) / 3,
+            )
+
+            # Second control point
+            control2 = glm.vec2(
+                new_pos.x - (new_pos.x - last_point.x) / 3,
+                new_pos.y - (new_pos.y - last_point.y) / 3,
+            )
+
+            # Insert control points
+            self.control_points.insert(-1, control1)
+            self.control_points.insert(-1, control2)
+
+        else:
+            # Insert new point and control points after selected node
+            insert_idx = self.selected_node_index + 1
+
+            # Get surrounding points for calculating control points
+            prev_point = self.control_points[self.selected_node_index]
+            next_point = self.control_points[
+                min(insert_idx + 1, len(self.control_points) - 1)
+            ]
+
+            # Calculate control points positions
+            control1 = glm.vec2(
+                prev_point.x + (new_pos.x - prev_point.x) / 3,
+                prev_point.y + (new_pos.y - prev_point.y) / 3,
+            )
+
+            control2 = glm.vec2(
+                new_pos.x - (next_point.x - new_pos.x) / 3,
+                new_pos.y - (next_point.y - new_pos.y) / 3,
+            )
+
+            # Insert new points
+            self.control_points.insert(insert_idx, control2)
+            self.control_points.insert(insert_idx, new_pos)
+            self.control_points.insert(insert_idx, control1)
+
+            # Propagate changes to maintain C2 continuity
+            if insert_idx + 3 < len(self.control_points):
+                self._propagate_changes_forward(insert_idx + 3)
+            if insert_idx > 0:
+                self._propagate_changes_backward(insert_idx - 1)
+
+        self._update_segments()
+        return True
 
     def add_interpolation_point(self, point: glm.dvec2, last_point: bool = False):
         point_vec2 = glm.vec2(point.x, point.y)
