@@ -73,6 +73,7 @@ class App(Window):
         # Bezier curve control points
         self.bezierControlPoints: list[glm.vec2] = []
         self.drawingBezier: bool = False
+        self.editingBezier = False
 
         # CatmullRom curve control points
         self.catmullRomControlPoints: list[glm.vec2] = []
@@ -131,21 +132,26 @@ class App(Window):
         self.pixelShader.setFloat("windowWidth", self.windowWidth)
         self.pixelShader.setFloat("windowHeight", self.windowHeight)
 
-        # Convert control points to pixels with green color.
-        # Render both bezier and catmullrom control points.
         pixels = []
         if self.bezierControlPoints:
-            pixels = [
-                PixelData(glm.vec2(cp.x, cp.y), glm.vec3(0.0, 1.0, 0.0))
-                for cp in self.bezierControlPoints
-            ]
-        if self.catmullRomControlPoints:
-            pixels = [
-                PixelData(glm.vec2(cp.x, cp.y), glm.vec3(0.0, 1.0, 0.0))
-                for cp in self.catmullRomControlPoints
-            ]
-        self.pixelRenderer.update_pixels(pixels)
+            for i, cp in enumerate(self.bezierControlPoints):
+                # Use red color for selected node, green for others
+                color = (
+                    glm.vec3(0.0, 0.0, 1.0)
+                    if (self.c2_spline and i == self.c2_spline.selected_node_index)
+                    else glm.vec3(0.0, 1.0, 0.0)
+                )
+                pixels.append(PixelData(glm.vec2(cp.x, cp.y), color))
 
+        if self.catmullRomControlPoints:
+            pixels.extend(
+                [
+                    PixelData(glm.vec2(cp.x, cp.y), glm.vec3(0.0, 1.0, 0.0))
+                    for cp in self.catmullRomControlPoints
+                ]
+            )
+
+        self.pixelRenderer.update_pixels(pixels)
         self.pixelRenderer.render(0, False)
 
     @staticmethod
@@ -155,13 +161,21 @@ class App(Window):
         app.mousePos.x = xpos
         app.mousePos.y = app.windowHeight - ypos
 
+        if (
+            app.editingBezier
+            and app.mousePressed
+            and app.c2_spline.selected_node_index != -1
+        ):
+            app.c2_spline.move_selected_node(copy.deepcopy(app.mousePos))
+            app.bezierControlPoints = copy.deepcopy(app.c2_spline.control_points)
+            preview_points = app.bezierControlPoints.copy()
+            app.previewPolyline.update_points(preview_points)
+
         if app.drawingBezier and len(app.bezierControlPoints) > 0:
+            app.c2_spline.update_preview(copy.deepcopy(app.mousePos))
             preview_points = app.bezierControlPoints.copy()
             preview_points.append(copy.deepcopy(app.mousePos))
             app.previewPolyline.update_points(preview_points)
-            # app.bezierControlPoints = copy.deepcopy(
-            #     app.c2_spline.add_interpolation_point(copy.deepcopy(app.mousePos))
-            # )
 
         if app.drawingcatmullRom and len(app.catmullRomControlPoints) > 0:
             preview_points = app.catmullRomControlPoints.copy()
@@ -180,6 +194,7 @@ class App(Window):
         self.bezierControlPoints.clear()
         self.previewPolyline.update_points([])
         self.drawingBezier = True
+        self.editingBezier = False
         if self.c2_spline:
             self.shapes = []
             self.c2_spline = C2Spline(self.bezierShader)
@@ -210,6 +225,14 @@ class App(Window):
         if key == GLFW_KEY_3 and action == GLFW_PRESS:
             app.resetCatmullRomDrawing()
 
+        if key == GLFW_KEY_DELETE and action == GLFW_PRESS:
+            if app.editingBezier:
+                if app.c2_spline.delete_selected_node():
+                    app.bezierControlPoints = copy.deepcopy(
+                        app.c2_spline.control_points
+                    )
+                    app.previewPolyline.update_points(app.bezierControlPoints)
+
     @staticmethod
     def __mouseButtonCallback(
         window: GLFWwindow, button: int, action: int, mods: int
@@ -237,6 +260,14 @@ class App(Window):
                 app.shapes.append(app.previewPolyline)
                 app.shapes.append(app.c2_spline)
                 app.drawingBezier = False
+                app.editingBezier = True
+
+        if app.editingBezier:
+            if button == GLFW_MOUSE_BUTTON_LEFT and action == GLFW_PRESS:
+                if app.c2_spline.select_node(copy.deepcopy(app.mousePos)):
+                    app.mousePressed = True
+            elif button == GLFW_MOUSE_BUTTON_LEFT and action == GLFW_RELEASE:
+                app.mousePressed = False
 
         if app.drawingcatmullRom:
             if button == GLFW_MOUSE_BUTTON_LEFT and action == GLFW_PRESS:
