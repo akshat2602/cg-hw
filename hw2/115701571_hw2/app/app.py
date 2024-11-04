@@ -1,5 +1,6 @@
 import copy
 from OpenGL.GL import *
+import glfw
 from glfw.GLFW import *
 from glfw import _GLFWwindow as GLFWwindow
 import glm
@@ -355,6 +356,7 @@ class App(Window):
     def __mouseButtonCallback(
         window: GLFWwindow, button: int, action: int, mods: int
     ) -> None:
+        """Handle mouse button events"""
         app: App = glfwGetWindowUserPointer(window)
 
         # Handle drawing modes
@@ -367,9 +369,30 @@ class App(Window):
 
         # Handle editing modes
         elif app.state.editing_bezier:
-            app._handle_editing_bezier_mouse_event(button, action)
+            if button == GLFW_MOUSE_BUTTON_LEFT:
+                insert_pressed = glfwGetKey(window, GLFW_KEY_INSERT) == GLFW_PRESS
+                if action == GLFW_PRESS and insert_pressed:
+                    new_pos = glm.vec2(app.mouse_pos.x, app.mouse_pos.y)
+                    if app.c2_spline.insert_node(new_pos):
+                        app.bezier_control_points = copy.deepcopy(
+                            app.c2_spline.control_points
+                        )
+                        app.preview_polyline.update_points(app.bezier_control_points)
+                else:
+                    # Normal selection/dragging
+                    app._handle_editing_bezier_mouse_event(button, action)
         elif app.state.editing_catmullrom:
-            app._handle_editing_catmullrom_mouse_event(button, action)
+            if button == GLFW_MOUSE_BUTTON_LEFT:
+                insert_pressed = glfwGetKey(window, GLFW_KEY_INSERT) == GLFW_PRESS
+                if action == GLFW_PRESS and insert_pressed:
+                    app.catmullrom.add_node_at_index(app.mouse_pos)
+                    app.catmullrom_control_points = copy.deepcopy(
+                        app.catmullrom.control_points
+                    )
+                    app.preview_polyline.update_points(app.catmullrom_control_points)
+                else:
+                    # Normal selection/dragging
+                    app._handle_editing_catmullrom_mouse_event(button, action)
 
     def _handle_editing_bezier_mouse_event(self, button: int, action: int):
         if button == GLFW_MOUSE_BUTTON_LEFT:
@@ -416,19 +439,12 @@ class App(Window):
             app._handle_key_press(key, mods)
 
     def _handle_key_press(self, key: int, mods: int):
-        # Mode switching keys
         if key == GLFW_KEY_1:
             self.reset_bezier_drawing()
         elif key == GLFW_KEY_3:
             self.reset_catmullrom_drawing()
-
-        # Node manipulation keys
         elif key == GLFW_KEY_DELETE:
             self._handle_delete_node()
-        elif key == GLFW_KEY_INSERT:
-            self._handle_insert_node()
-
-        # File operation keys
         elif key == GLFW_KEY_S and (mods & GLFW_MOD_CONTROL):
             self._handle_save()
         elif key == GLFW_KEY_L and (mods & GLFW_MOD_CONTROL):
@@ -443,22 +459,6 @@ class App(Window):
                 self.preview_polyline.update_points(self.bezier_control_points)
         elif self.state.editing_catmullrom:
             self.catmullrom.delete_selected_node()
-            self.catmullrom_control_points = copy.deepcopy(
-                self.catmullrom.control_points
-            )
-            self.preview_polyline.update_points(self.catmullrom_control_points)
-
-    def _handle_insert_node(self):
-        new_pos = glm.vec2(self.mouse_pos.x, self.mouse_pos.y)
-
-        if self.state.editing_bezier:
-            if self.c2_spline.insert_node(new_pos):
-                self.bezier_control_points = copy.deepcopy(
-                    self.c2_spline.control_points
-                )
-                self.preview_polyline.update_points(self.bezier_control_points)
-        elif self.state.editing_catmullrom:
-            self.catmullrom.add_node_at_index(self.mouse_pos)
             self.catmullrom_control_points = copy.deepcopy(
                 self.catmullrom.control_points
             )
