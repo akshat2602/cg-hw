@@ -7,7 +7,7 @@ from glfw import _GLFWwindow as GLFWwindow
 import glm
 
 from .window import Window
-from shape import Line, Mesh, Renderable, Sphere, Tetrahedron, Icosahedron
+from shape import Line, Mesh, Renderable, Tetrahedron, Icosahedron, Ellipsoid
 from util import Camera, Shader
 
 
@@ -196,6 +196,15 @@ class App(Window):
             use_smooth_normals=False,
         )
 
+        ellipsoid_scale = glm.vec3(1.5, 1.0, 0.8)  # Different scales for x, y, z
+        self.flat_ellipsoid = Ellipsoid(
+            self.meshShader,
+            "var/icosahedron.txt",
+            # ellipsoid_scale,
+            glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)),
+            use_smooth_normals=False,
+        )
+
         # Create smooth-shaded versions
         self.smooth_shapes = []
         # Tetrahedron
@@ -229,6 +238,14 @@ class App(Window):
         self.smooth_icosahedron = Icosahedron(
             self.meshShader,
             "var/icosahedron.txt",
+            glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)),
+            use_smooth_normals=True,
+        )
+
+        self.smooth_ellipsoid = Ellipsoid(
+            self.meshShader,
+            "var/icosahedron.txt",
+            # ellipsoid_scale,
             glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)),
             use_smooth_normals=True,
         )
@@ -344,6 +361,17 @@ class App(Window):
             if app.current_mode == 2:  # Only subdivide in icosahedron mode
                 app.flat_icosahedron.subdivide()
                 app.smooth_icosahedron.subdivide()
+        elif key == GLFW_KEY_3:
+            app.current_mode = 3
+            # Reset camera
+            app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
+        elif key == GLFW_KEY_EQUAL and (mods & GLFW_MOD_SHIFT):  # '+' key
+            if app.current_mode == 2:  # Icosahedron mode
+                app.flat_icosahedron.subdivide()
+                app.smooth_icosahedron.subdivide()
+            elif app.current_mode == 3:  # Ellipsoid mode
+                app.flat_ellipsoid.subdivide()
+                app.smooth_ellipsoid.subdivide()
 
     @staticmethod
     def __mouseButtonCallback(
@@ -456,9 +484,17 @@ class App(Window):
             )
             for shape in shapes_to_render:
                 shape.render(t)
+
         elif self.current_mode == 2:
             # Render icosahedron
             if self.displayMode == DisplayMode.FLAT:
                 self.flat_icosahedron.render(t)
             else:
                 self.smooth_icosahedron.render(t)
+
+        elif self.current_mode == 3:
+            # Render ellipsoid
+            if self.displayMode == DisplayMode.FLAT:
+                self.flat_ellipsoid.render(t)
+            else:
+                self.smooth_ellipsoid.render(t)
