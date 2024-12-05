@@ -31,7 +31,6 @@ class Icosahedron(Mesh):
     def subdivide(self):
         """Subdivide the current mesh"""
         new_floatList = []
-
         for i in range(0, len(self.floatList), 9):
             v1 = glm.vec3(
                 self.floatList[i], self.floatList[i + 1], self.floatList[i + 2]

@@ -200,7 +200,7 @@ class App(Window):
         self.flat_ellipsoid = Ellipsoid(
             self.meshShader,
             "var/icosahedron.txt",
-            # ellipsoid_scale,
+            ellipsoid_scale,
             glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)),
             use_smooth_normals=False,
         )
@@ -245,7 +245,7 @@ class App(Window):
         self.smooth_ellipsoid = Ellipsoid(
             self.meshShader,
             "var/icosahedron.txt",
-            # ellipsoid_scale,
+            ellipsoid_scale,
             glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)),
             use_smooth_normals=True,
         )
@@ -346,6 +346,10 @@ class App(Window):
             app.current_mode = 2
             # Reset camera
             app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
+        elif key == GLFW_KEY_3:
+            app.current_mode = 3
+            # Reset camera
+            app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
         elif key == GLFW_KEY_F1:
             app.displayMode = DisplayMode.WIREFRAME
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
@@ -357,14 +361,6 @@ class App(Window):
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
         elif key == GLFW_KEY_X:
             app.showAxes = not app.showAxes
-        elif key == GLFW_KEY_EQUAL and (mods & GLFW_MOD_SHIFT):  # This is the '+' key
-            if app.current_mode == 2:  # Only subdivide in icosahedron mode
-                app.flat_icosahedron.subdivide()
-                app.smooth_icosahedron.subdivide()
-        elif key == GLFW_KEY_3:
-            app.current_mode = 3
-            # Reset camera
-            app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
         elif key == GLFW_KEY_EQUAL and (mods & GLFW_MOD_SHIFT):  # '+' key
             if app.current_mode == 2:  # Icosahedron mode
                 app.flat_icosahedron.subdivide()

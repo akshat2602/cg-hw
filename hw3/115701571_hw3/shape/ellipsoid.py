@@ -3,60 +3,22 @@ import glm
 from collections import defaultdict
 
 from util import Shader
-from .mesh import Mesh
+from .icosahedron import Icosahedron
 
 
-class Ellipsoid(Mesh):
-    color: glm.vec3 = glm.vec3(0.4, 0.8, 0.3)  # Greenish color
+class Ellipsoid(Icosahedron):
+    color: glm.vec3 = glm.vec3(0.4, 0.8, 0.3)
 
     def __init__(
         self,
         shader: Shader,
         vertexFile: str,
+        scale: glm.vec3,
         model: glm.mat4 = glm.mat4(1.0),
         use_smooth_normals: bool = True,
     ):
-        self.shader = shader
-        self.use_smooth_normals = use_smooth_normals
-        self.scale = glm.vec3(1.5, 1.0, 0.8)  # Different scales for x, y, z
-
-        # Read vertices
-        with open(vertexFile, "r") as fin:
-            self.floatList = list(map(float, fin.read().split()))
-
-        vertices = self.create_mesh(self.floatList)
-        super().__init__(shader, vertices, model)
-
-    def subdivide(self):
-        new_floatList = []
-
-        for i in range(0, len(self.floatList), 9):
-            v1 = glm.vec3(
-                self.floatList[i], self.floatList[i + 1], self.floatList[i + 2]
-            )
-            v2 = glm.vec3(
-                self.floatList[i + 3], self.floatList[i + 4], self.floatList[i + 5]
-            )
-            v3 = glm.vec3(
-                self.floatList[i + 6], self.floatList[i + 7], self.floatList[i + 8]
-            )
-
-            v12 = glm.normalize((v1 + v2) / 2.0)
-            v23 = glm.normalize((v2 + v3) / 2.0)
-            v31 = glm.normalize((v3 + v1) / 2.0)
-
-            for triangle in [
-                (v1, v12, v31),
-                (v2, v23, v12),
-                (v3, v31, v23),
-                (v12, v23, v31),
-            ]:
-                for v in triangle:
-                    new_floatList.extend([v.x, v.y, v.z])
-
-        self.floatList = new_floatList
-        self.vertices = self.create_mesh(self.floatList)
-        super().__init__(self.shader, self.vertices, self.model)
+        self.scale = scale
+        super().__init__(shader, vertexFile, model, use_smooth_normals)
 
     def create_mesh(self, float_list):
         vertices = []
@@ -65,7 +27,6 @@ class Ellipsoid(Mesh):
 
         triangles = []
         for i in range(0, len(float_list), 9):
-            # Scale the vertices here
             v1 = glm.vec3(
                 float_list[i] * self.scale.x,
                 float_list[i + 1] * self.scale.y,
@@ -120,3 +81,6 @@ class Ellipsoid(Mesh):
                 vertexList.extend([self.color.x, self.color.y, self.color.z])
 
         return glm.array(glm.float32, *vertexList)
+
+    def subdivide(self):
+        super().subdivide()
