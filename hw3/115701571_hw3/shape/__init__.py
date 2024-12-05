@@ -4,3 +4,4 @@ from .mesh import Mesh
 from .renderable import Renderable
 from .sphere import Sphere
 from .tetrahedron import Tetrahedron
+from .icosahedron import Icosahedron

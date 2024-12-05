@@ -7,7 +7,7 @@ from glfw import _GLFWwindow as GLFWwindow
 import glm
 
 from .window import Window
-from shape import Line, Mesh, Renderable, Sphere, Tetrahedron
+from shape import Line, Mesh, Renderable, Sphere, Tetrahedron, Icosahedron
 from util import Camera, Shader
 
 
@@ -162,6 +162,7 @@ class App(Window):
         # )
 
         self.flat_shapes = []
+        # Tetrahedron
         self.flat_shapes.append(
             Tetrahedron(
                 self.meshShader,
@@ -170,6 +171,7 @@ class App(Window):
                 use_smooth_normals=False,  # New parameter
             )
         )
+        # Cube
         self.flat_shapes.append(
             Tetrahedron(
                 self.meshShader,
@@ -178,6 +180,7 @@ class App(Window):
                 use_smooth_normals=False,
             )
         )
+        # Octahedron
         self.flat_shapes.append(
             Tetrahedron(
                 self.meshShader,
@@ -186,9 +189,16 @@ class App(Window):
                 use_smooth_normals=False,
             )
         )
+        self.flat_icosahedron = Icosahedron(
+            self.meshShader,
+            "var/icosahedron.txt",
+            glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)),
+            use_smooth_normals=False,
+        )
 
         # Create smooth-shaded versions
         self.smooth_shapes = []
+        # Tetrahedron
         self.smooth_shapes.append(
             Tetrahedron(
                 self.meshShader,
@@ -197,6 +207,7 @@ class App(Window):
                 use_smooth_normals=True,
             )
         )
+        # Cube
         self.smooth_shapes.append(
             Tetrahedron(
                 self.meshShader,
@@ -205,6 +216,7 @@ class App(Window):
                 use_smooth_normals=True,
             )
         )
+        # Octahedron
         self.smooth_shapes.append(
             Tetrahedron(
                 self.meshShader,
@@ -212,6 +224,13 @@ class App(Window):
                 glm.translate(glm.mat4(1.0), glm.vec3(3.0, 0.0, 0.0)),
                 use_smooth_normals=True,
             )
+        )
+
+        self.smooth_icosahedron = Icosahedron(
+            self.meshShader,
+            "var/icosahedron.txt",
+            glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)),
+            use_smooth_normals=True,
         )
 
         # self.shapes.append(
@@ -304,29 +323,12 @@ class App(Window):
 
         if key == GLFW_KEY_1:
             app.current_mode = 1
-            # Reset camera using its built-in defaults
+            # Reset camera
             app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
-            # Reset shapes to their default positions for mode 1
-            app.flat_shapes[0].model = glm.translate(
-                glm.mat4(1.0), glm.vec3(-3.0, 0.0, 0.0)
-            )  # tetrahedron
-            app.flat_shapes[1].model = glm.translate(
-                glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)
-            )  # cube
-            app.flat_shapes[2].model = glm.translate(
-                glm.mat4(1.0), glm.vec3(3.0, 0.0, 0.0)
-            )  # octahedron
-            # Update smooth shapes positions to match
-            app.smooth_shapes[0].model = glm.translate(
-                glm.mat4(1.0), glm.vec3(-3.0, 0.0, 0.0)
-            )
-            app.smooth_shapes[1].model = glm.translate(
-                glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)
-            )
-            app.smooth_shapes[2].model = glm.translate(
-                glm.mat4(1.0), glm.vec3(3.0, 0.0, 0.0)
-            )
-
+        elif key == GLFW_KEY_2:
+            app.current_mode = 2
+            # Reset camera
+            app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
         elif key == GLFW_KEY_F1:
             app.displayMode = DisplayMode.WIREFRAME
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
@@ -338,6 +340,10 @@ class App(Window):
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
         elif key == GLFW_KEY_X:
             app.showAxes = not app.showAxes
+        elif key == GLFW_KEY_EQUAL and (mods & GLFW_MOD_SHIFT):  # This is the '+' key
+            if app.current_mode == 2:  # Only subdivide in icosahedron mode
+                app.flat_icosahedron.subdivide()
+                app.smooth_icosahedron.subdivide()
 
     @staticmethod
     def __mouseButtonCallback(
@@ -441,14 +447,18 @@ class App(Window):
         if self.showAxes:
             self.axes.render(t)
 
-        shapes_to_render = []
-        if self.displayMode == DisplayMode.WIREFRAME:
-            shapes_to_render = self.flat_shapes  # Could use either set for wireframe
-        elif self.displayMode == DisplayMode.FLAT:
-            shapes_to_render = self.flat_shapes
-        else:  # SMOOTH
-            shapes_to_render = self.smooth_shapes
-
-        # Render all shapes.
-        for s in shapes_to_render:
-            s.render(t)
+        if self.current_mode == 1:
+            # Render basic shapes (tetrahedron, cube, octahedron)
+            shapes_to_render = (
+                self.flat_shapes
+                if self.displayMode == DisplayMode.FLAT
+                else self.smooth_shapes
+            )
+            for shape in shapes_to_render:
+                shape.render(t)
+        elif self.current_mode == 2:
+            # Render icosahedron
+            if self.displayMode == DisplayMode.FLAT:
+                self.flat_icosahedron.render(t)
+            else:
+                self.smooth_icosahedron.render(t)
