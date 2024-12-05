@@ -6,3 +6,5 @@ from .sphere import Sphere
 from .tetrahedron import Tetrahedron
 from .icosahedron import Icosahedron
 from .ellipsoid import Ellipsoid
+from .parametric import Parametric
+from .torus import Torus

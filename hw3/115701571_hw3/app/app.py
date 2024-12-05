@@ -7,7 +7,15 @@ from glfw import _GLFWwindow as GLFWwindow
 import glm
 
 from .window import Window
-from shape import Line, Mesh, Renderable, Tetrahedron, Icosahedron, Ellipsoid
+from shape import (
+    Line,
+    Renderable,
+    Tetrahedron,
+    Icosahedron,
+    Ellipsoid,
+    Parametric,
+    Torus,
+)
 from util import Camera, Shader
 
 
@@ -57,6 +65,13 @@ class App(Window):
             tesc=None,
             tese=None,
             frag="shader/phong.frag.glsl",
+        )
+
+        self.parametricShader = Shader(
+            vert="shader/parametric.vert.glsl",
+            tesc="shader/parametric.tesc.glsl",
+            tese="shader/parametric.tese.glsl",
+            frag="shader/parametric.frag.glsl",
         )
 
         # self.sphereShader: Shader = Shader(
@@ -160,6 +175,34 @@ class App(Window):
         #         ),
         #     )
         # )
+
+        self.parametric_shapes = [
+            Parametric(
+                self.parametricShader,
+                0,  # sphere
+                glm.vec3(0.8, 0.3, 0.2),
+                glm.translate(glm.mat4(1.0), glm.vec3(-3.0, 0.0, 0.0)),
+            ),
+            Parametric(
+                self.parametricShader,
+                1,  # cylinder
+                glm.vec3(0.2, 0.8, 0.3),
+                glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)),
+            ),
+            Parametric(
+                self.parametricShader,
+                2,  # cone
+                glm.vec3(0.3, 0.2, 0.8),
+                glm.translate(glm.mat4(1.0), glm.vec3(3.0, 0.0, 0.0)),
+            ),
+        ]
+        self.torus = Torus(
+            self.meshShader,  # Note: using meshShader not parametricShader
+            1.0,  # Major radius
+            0.3,  # Minor radius
+            glm.vec3(0.3, 0.8, 0.2),  # color
+            glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)),
+        )
 
         self.flat_shapes = []
         # Tetrahedron
@@ -340,15 +383,18 @@ class App(Window):
 
         if key == GLFW_KEY_1:
             app.current_mode = 1
-            # Reset camera
             app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
         elif key == GLFW_KEY_2:
             app.current_mode = 2
-            # Reset camera
             app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
         elif key == GLFW_KEY_3:
             app.current_mode = 3
-            # Reset camera
+            app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
+        elif key == GLFW_KEY_4:
+            app.current_mode = 4
+            app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
+        elif key == GLFW_KEY_5:
+            app.current_mode = 5
             app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
         elif key == GLFW_KEY_F1:
             app.displayMode = DisplayMode.WIREFRAME
@@ -368,6 +414,8 @@ class App(Window):
             elif app.current_mode == 3:  # Ellipsoid mode
                 app.flat_ellipsoid.subdivide()
                 app.smooth_ellipsoid.subdivide()
+            elif app.current_mode == 5:
+                app.torus.subdivide()  # Assuming torus is index 3
 
     @staticmethod
     def __mouseButtonCallback(
@@ -494,3 +542,25 @@ class App(Window):
                 self.flat_ellipsoid.render(t)
             else:
                 self.smooth_ellipsoid.render(t)
+
+        elif self.current_mode == 4:
+            self.parametricShader.use()
+            self.parametricShader.setMat4("view", self.view)
+            self.parametricShader.setMat4("projection", self.projection)
+            self.parametricShader.setVec3("viewPos", self.camera.position)
+            self.parametricShader.setVec3("lightPos", self.lightPos)
+            self.parametricShader.setVec3("lightColor", self.lightColor)
+
+            for shape in self.parametric_shapes:
+                shape.render(t)
+
+        elif self.current_mode == 5:
+            self.meshShader.use()
+            self.meshShader.setMat4("view", self.view)
+            self.meshShader.setMat4("projection", self.projection)
+            self.meshShader.setVec3("viewPos", self.camera.position)
+            self.meshShader.setVec3("lightPos", self.lightPos)
+            self.meshShader.setVec3("lightColor", self.lightColor)
+            self.meshShader.setInt("displayMode", self.displayMode.value)
+
+            self.torus.render(t)
