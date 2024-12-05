@@ -1,27 +1,33 @@
 #version 410 core
 
-// The "a" prefix stands for "attribute".
 layout (location = 0) in vec3 aPosition;
 layout (location = 1) in vec3 aNormal;
 layout (location = 2) in vec3 aColor;
 
-// These out variables will be passed along the pipeline
-// and be refered with a uniform name in all shader stages,
-// thus we add an "our" prefix.
-out vec3 ourFragPos;
-out vec3 ourNormal;
-out vec3 ourColor;
+out vec3 FragPos;
+out vec3 Normal;
+out vec3 Color;
+flat out vec3 FlatNormal;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-
 uniform int displayMode;
 
 void main()
 {
-    gl_Position = projection * view * model * vec4(aPosition, 1.0f);
-    ourFragPos = vec3(model * vec4(aPosition, 1.0f));
-    ourNormal = vec3(transpose(inverse(model)) * vec4(aNormal, 1.0f));
-    ourColor = aColor;
+    vec4 worldPos = model * vec4(aPosition, 1.0);
+    FragPos = vec3(worldPos);
+    
+    mat3 normalMatrix = mat3(transpose(inverse(model)));
+    vec3 transformedNormal = normalize(normalMatrix * aNormal);
+    
+    // For flat shading, use the face normal directly
+    FlatNormal = transformedNormal;
+    
+    // For smooth shading, we'll let the normal be interpolated
+    Normal = transformedNormal;
+    
+    Color = aColor;
+    gl_Position = projection * view * worldPos;
 }
