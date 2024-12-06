@@ -17,6 +17,7 @@ from shape import (
     Torus,
     Superquadric,
     Dodecahedron,
+    CityScene,
 )
 from util import Camera, Shader
 
@@ -84,6 +85,7 @@ class App(Window):
         # )
 
         # Objects to render.
+        self.city_scene = CityScene(self.meshShader, self.parametricShader)
         self.shapes: list[Renderable] = []
 
         self.axes = Line(
@@ -425,6 +427,13 @@ class App(Window):
         elif key == GLFW_KEY_6:
             app.current_mode = 6
             app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
+        elif key == GLFW_KEY_7:
+            app.current_mode = 7
+            app.camera = app.city_scene.camera  # Use city scene's camera
+        elif key == GLFW_KEY_H and app.current_mode == 7:
+            app.city_scene.start_animation("H")
+        elif key == GLFW_KEY_V and app.current_mode == 7:
+            app.city_scene.start_animation("V")
         elif key == GLFW_KEY_F1:
             app.displayMode = DisplayMode.WIREFRAME
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
@@ -615,3 +624,10 @@ class App(Window):
             self.parametricShader.setVec3("lightPos", self.lightPos)
             self.parametricShader.setVec3("lightColor", self.lightColor)
             self.superquadric.render(t)
+
+        elif self.current_mode == 7:
+            # Clear scene
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+            # Render city scene
+            self.city_scene.render(t, self.displayMode.value)

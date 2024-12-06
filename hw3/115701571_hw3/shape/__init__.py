@@ -10,3 +10,4 @@ from .parametric import Parametric
 from .torus import Torus
 from .dodecahedron import Dodecahedron
 from .superquadric import Superquadric
+from .cityscene import CityScene

@@ -15,9 +15,9 @@ class Superquadric(Parametric):
         color: glm.vec3,
         model: glm.mat4 = glm.mat4(1.0),
     ):
+        super().__init__(shader, 3, color, model)  # 3 indicates superquadric type
         self.e1 = e1
         self.e2 = e2
-        super().__init__(shader, 3, color, model)  # 3 indicates superquadric type
 
     def update_parameters(self, e1: float, e2: float):
         """Update superquadric parameters dynamically"""
@@ -26,3 +26,9 @@ class Superquadric(Parametric):
         self.shader.use()
         self.shader.setFloat("e1", self.e1)
         self.shader.setFloat("e2", self.e2)
+
+    def render(self, timeElapsedSinceLastFrame: float) -> None:
+        self.shader.use()
+        self.shader.setFloat("e1", self.e1)
+        self.shader.setFloat("e2", self.e2)
+        super().render(timeElapsedSinceLastFrame)

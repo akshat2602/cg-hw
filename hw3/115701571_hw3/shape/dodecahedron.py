@@ -13,10 +13,11 @@ class Dodecahedron(Mesh):
         vertexFile: str,
         model: glm.mat4 = glm.mat4(1.0),
         use_smooth_normals: bool = True,
+        color: glm.vec3 = glm.vec3(0.8, 0.2, 0.8),
     ):
         self.shader = shader
         self.use_smooth_normals = use_smooth_normals
-        self.color = glm.vec3(0.8, 0.2, 0.8)
+        self.color = color
         self.subdivision_level = 0
 
         # Read vertices

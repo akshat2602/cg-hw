@@ -7,7 +7,6 @@ from .icosahedron import Icosahedron
 
 
 class Ellipsoid(Icosahedron):
-    color: glm.vec3 = glm.vec3(0.4, 0.8, 0.3)
 
     def __init__(
         self,
@@ -16,7 +15,9 @@ class Ellipsoid(Icosahedron):
         scale: glm.vec3,
         model: glm.mat4 = glm.mat4(1.0),
         use_smooth_normals: bool = True,
+        color: glm.vec3 = glm.vec3(0.4, 0.8, 0.3),
     ):
+        self.color: glm.vec3 = color
         self.scale = scale
         super().__init__(shader, vertexFile, model, use_smooth_normals)
 

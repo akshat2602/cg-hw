@@ -8,7 +8,6 @@ from util import Shader
 
 
 class Icosahedron(Mesh):
-    color: glm.vec3 = glm.vec3(0.8, 0.3, 0.2)
 
     def __init__(
         self,
@@ -16,7 +15,9 @@ class Icosahedron(Mesh):
         vertexFile: str,
         model: glm.mat4 = glm.mat4(1.0),
         use_smooth_normals: bool = True,
+        color: glm.vec3 = glm.vec3(0.8, 0.3, 0.2),
     ):
+        self.color: glm.vec3 = color
         self.shader = shader
         self.use_smooth_normals = use_smooth_normals
 

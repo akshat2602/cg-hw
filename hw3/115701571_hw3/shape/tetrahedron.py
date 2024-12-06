@@ -8,7 +8,6 @@ from util import Shader
 
 
 class Tetrahedron(Mesh):
-    color: glm.vec3 = glm.vec3(0.31, 0.5, 1.0)
 
     def __init__(
         self,
@@ -16,9 +15,11 @@ class Tetrahedron(Mesh):
         vertexFile: str,
         model: glm.mat4 = glm.mat4(1.0),
         use_smooth_normals: bool = True,
+        color: glm.vec3 = glm.vec3(0.31, 0.5, 1.0),
     ):
 
         # First, read all vertices and store unique ones
+        self.color: glm.vec3 = color
         vertices = []
         vertex_to_index = {}
         vertex_to_normals = defaultdict(list)  # Store all face normals for each vertex
