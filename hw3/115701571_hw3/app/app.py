@@ -15,6 +15,8 @@ from shape import (
     Ellipsoid,
     Parametric,
     Torus,
+    Superquadric,
+    Dodecahedron,
 )
 from util import Camera, Shader
 
@@ -293,6 +295,30 @@ class App(Window):
             use_smooth_normals=True,
         )
 
+        self.dodecahedron = Dodecahedron(
+            self.meshShader,
+            "var/dodecahedron.txt",
+            glm.scale(  # Scale uniformly
+                glm.translate(glm.mat4(1.0), glm.vec3(-2.0, 0.0, 0.0)),  # Position
+                glm.vec3(0.7, 0.7, 0.7),  # Scale factor
+            ),
+            use_smooth_normals=False,
+        )
+
+        # Create superquadric with default parameters
+        self.superquadric = Superquadric(
+            self.parametricShader,
+            1.0,  # Default parameters
+            1.0,
+            glm.vec3(0.3, 0.7, 0.5),  # color
+            glm.translate(glm.mat4(1.0), glm.vec3(2.0, 0.0, 0.0)),
+        )
+
+        with open("etc/config.txt", "r") as f:
+            # Format: e1 e2
+            params = f.readline().strip().split()
+            self.superquadric.update_parameters(float(params[0]), float(params[1]))
+
         # self.shapes.append(
         #     Sphere(
         #         self.sphereShader,
@@ -396,6 +422,9 @@ class App(Window):
         elif key == GLFW_KEY_5:
             app.current_mode = 5
             app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
+        elif key == GLFW_KEY_6:
+            app.current_mode = 6
+            app.camera = Camera(glm.vec3(0.0, 0.0, 10.0))
         elif key == GLFW_KEY_F1:
             app.displayMode = DisplayMode.WIREFRAME
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
@@ -416,6 +445,8 @@ class App(Window):
                 app.smooth_ellipsoid.subdivide()
             elif app.current_mode == 5:
                 app.torus.subdivide()  # Assuming torus is index 3
+            elif app.current_mode == 6:
+                app.dodecahedron.subdivide()
 
     @staticmethod
     def __mouseButtonCallback(
@@ -564,3 +595,23 @@ class App(Window):
             self.meshShader.setInt("displayMode", self.displayMode.value)
 
             self.torus.render(t)
+
+        elif self.current_mode == 6:
+            # Render dodecahedron
+            self.meshShader.use()
+            self.meshShader.setMat4("view", self.view)
+            self.meshShader.setMat4("projection", self.projection)
+            self.meshShader.setVec3("viewPos", self.camera.position)
+            self.meshShader.setVec3("lightPos", self.lightPos)
+            self.meshShader.setVec3("lightColor", self.lightColor)
+            self.meshShader.setInt("displayMode", self.displayMode.value)
+            self.dodecahedron.render(t)
+
+            # Render superquadric
+            self.parametricShader.use()
+            self.parametricShader.setMat4("view", self.view)
+            self.parametricShader.setMat4("projection", self.projection)
+            self.parametricShader.setVec3("viewPos", self.camera.position)
+            self.parametricShader.setVec3("lightPos", self.lightPos)
+            self.parametricShader.setVec3("lightColor", self.lightColor)
+            self.superquadric.render(t)
