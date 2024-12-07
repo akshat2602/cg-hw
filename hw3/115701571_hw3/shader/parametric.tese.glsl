@@ -29,20 +29,14 @@ vec4 getSuperquadricPosition(float u, float v) {
     float phi = TWO_PI * u - PI;      // Range: -π to π
     float theta = PI * v - PI/2.0;    // Range: -π/2 to π/2
     
-    // Use reciprocal of exponents to get correct behavior:
-    // - Small exponents (e.g. 0.3) -> cube-like
-    // - Large exponents (e.g. 3.0) -> star-like
-    float r_e1 = 1.0/e1;
-    float r_e2 = 1.0/e2;
-    
     float cosPhi = cos(phi);
     float cosTheta = cos(theta);
     float sinPhi = sin(phi);
     float sinTheta = sin(theta);
     
-    float x = spow(cosTheta, r_e1) * spow(cosPhi, r_e2);
-    float y = spow(cosTheta, r_e1) * spow(sinPhi, r_e2);
-    float z = spow(sinTheta, r_e1);
+    float x = spow(cosTheta, e1) * spow(cosPhi, e2);
+    float y = spow(cosTheta, e1) * spow(sinPhi, e2);
+    float z = spow(sinTheta, e1);
     
     return vec4(x, y, z, 1.0);
 }
@@ -51,20 +45,18 @@ vec3 getSuperquadricNormal(float u, float v) {
     float phi = TWO_PI * u - PI;
     float theta = PI * v - PI/2.0;
     
-    float r_e1 = 1.0/e1;
-    float r_e2 = 1.0/e2;
-    
     float cosPhi = cos(phi);
     float cosTheta = cos(theta);
     float sinPhi = sin(phi);
     float sinTheta = sin(theta);
     
-    float nx = (2.0*r_e2) * spow(cosTheta, 2.0-r_e1) * spow(cosPhi, 2.0-r_e2);
-    float ny = (2.0*r_e2) * spow(cosTheta, 2.0-r_e1) * spow(sinPhi, 2.0-r_e2);
-    float nz = (2.0*r_e1) * spow(sinTheta, 2.0-r_e1);
+    float nx = (2.0/e2) * spow(cosTheta, 2.0-e1) * spow(cosPhi, 2.0-e2);
+    float ny = (2.0/e2) * spow(cosTheta, 2.0-e1) * spow(sinPhi, 2.0-e2);
+    float nz = (2.0/e1) * spow(sinTheta, 2.0-e1);
     
     return normalize(vec3(nx, ny, nz));
 }
+
 
 vec4 getSpherePosition(float u, float v)
 {
